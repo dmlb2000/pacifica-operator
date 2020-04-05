@@ -1,0 +1,7 @@
+apiVersion: pacifica.github.io/v1alpha1
+kind: Pacifica
+metadata:
+  name: example-pacifica
+spec:
+  # Add fields here
+  size: 3
