@@ -14,14 +14,14 @@
         kind: Namespace
         name: '{{ namespace }}'
         state: absent
-        wait: yes
+        wait: true
 
     - name: Delete RBAC resources
       k8s:
         definition: "{{ lookup('template', '/'.join([deploy_dir, item])) }}"
         namespace: '{{ namespace }}'
         state: absent
-        wait: yes
+        wait: true
       with_items:
         - role.yaml
         - role_binding.yaml
@@ -31,4 +31,4 @@
       k8s:
         definition: "{{ lookup('file', '/'.join([deploy_dir, 'crds/pacifica.github.io_pacificas_crd.yaml'])) }}"
         state: absent
-        wait: yes
+        wait: true

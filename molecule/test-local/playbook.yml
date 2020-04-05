@@ -2,18 +2,15 @@
 - name: Build Operator in Kubernetes docker container
   hosts: k8s
   collections:
-   - community.kubernetes
-
+    - community.kubernetes
   vars:
     image: pacifica.github.io/pacifica-operator:testing
-
   tasks:
     # using command so we don't need to install any dependencies
     - name: Get existing image hash
       command: docker images -q {{ image }}
       register: prev_hash_raw
       changed_when: false
-
     - name: Build Operator Image
       command: docker build -f /build/build/Dockerfile -t {{ image }} /build
       register: build_cmd
@@ -21,12 +18,11 @@
       vars:
         hash: '{{ prev_hash_raw.stdout }}'
         cmd_out: '{{ "".join(build_cmd.stdout_lines[-2:]) }}'
-
 - name: Converge
   hosts: localhost
   connection: local
   collections:
-   - community.kubernetes
+    - community.kubernetes
 
   vars:
     image: pacifica.github.io/pacifica-operator:testing
@@ -37,6 +33,6 @@
       k8s:
         namespace: '{{ namespace }}'
         definition: "{{ lookup('template', operator_template) }}"
-        wait: yes
+        wait: true
       vars:
         pull_policy: Never

@@ -2,10 +2,9 @@
 - name: Converge
   hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
   collections:
     - community.kubernetes
-
   tasks:
     - name: Ensure operator image is set
       fail:
@@ -18,7 +17,7 @@
       k8s:
         namespace: '{{ namespace }}'
         definition: "{{ lookup('template', '/'.join([template_dir, 'operator.yaml.j2'])) }}"
-        wait: yes
+        wait: true
       vars:
         image: '{{ operator_image }}'
         pull_policy: '{{ operator_pull_policy }}'

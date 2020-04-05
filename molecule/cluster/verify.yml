@@ -3,7 +3,7 @@
 - name: Verify
   hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
   collections:
     - community.kubernetes
 
@@ -16,7 +16,7 @@
         state: present
         namespace: '{{ namespace }}'
         definition: '{{ custom_resource }}'
-        wait: yes
+        wait: true
         wait_timeout: 300
         wait_condition:
           type: Running
