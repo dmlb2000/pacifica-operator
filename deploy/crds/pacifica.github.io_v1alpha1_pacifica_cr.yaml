@@ -5,4 +5,4 @@ metadata:
   name: example-pacifica
 spec:
   # Add fields here
-  size: 3
+  uniqueid_size: 1

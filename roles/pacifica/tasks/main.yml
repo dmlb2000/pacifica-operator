@@ -1,2 +1,76 @@
 ---
 # tasks file for pacifica
+- name: start uniqueid
+  k8s:
+    definition:
+      kind: Deployment
+      apiVersion: apps/v1
+      metadata:
+        name: '{{ meta.name }}-uniqueid'
+        namespace: '{{ meta.namespace }}'
+      spec:
+        replicas: "{{ uniqueid_size }}"
+        selector:
+          matchLabels:
+            app: uniqueid
+        template:
+          metadata:
+            labels:
+              app: uniqueid
+          spec:
+            containers:
+              - name: uniqueid
+                image: "{{ uniqueid_image }}"
+                env: "{{ uniqueid_env | default([]) }}"
+                command:
+                  - /usr/local/bin/uwsgi
+                  - --http-socket
+                  - "0.0.0.0:{{ uniqueid_port }}"
+                  - --master
+                  - --die-on-term
+                  - -p
+                  - '1'
+                  - --module
+                  - pacifica.uniqueid.wsgi
+                volumeMounts:
+                  - name: uniqueid-config
+                    mountPath: "/root/.pacifica-uniqueid"
+                  - name: uniqueid-database
+                    mountPath: "/root/.pacifica-uniqueiddb"
+                ports:
+                  - containerPort: "{{ uniqueid_port }}"
+                readinessProbe:
+                  httpGet:
+                    path: /getid?mode=k8schk&range=1
+                    port: "{{ uniqueid_port }}"
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+            initContainers:
+              - name: wait-for-services
+                image: busybox:1.28
+                command:
+                  - sh
+                  - -c
+                  - |
+                    {% for service in uniqueid_services %}
+                    until nslookup {{ service }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do
+                      echo waiting for {{ service }}; sleep 2;
+                    done;
+                    {% endfor %}
+                    echo done;
+              - name: init-uniqueiddb
+                image: "{{ uniqueid_image }}"
+                command:
+                  - sh
+                  - -c
+                  - /usr/local/bin/pacifica-uniqueid-cmd dbsync && echo success; ls -lh /root/.pacifica-uniqueid; echo done;
+                volumeMounts:
+                  - name: uniqueid-config
+                    mountPath: "/root/.pacifica-uniqueid"
+                  - name: uniqueid-database
+                    mountPath: "/root/.pacifica-uniqueiddb"
+            volumes:
+              - "{{ uniqueid_configmap }}"
+              - name: uniqueid-database
+                persistentVolumeClaim:
+                  claimName: "{{ uniqueiddb_pvc_name }}"

@@ -1,2 +1,12 @@
 ---
 # defaults file for pacifica
+uniqueiddb_pvc_name: uniqueiddb-pvc
+uniqueid_configmap:
+  name: uniqueid-config
+  configMap:
+    name: uniqueid-config
+uniqueid_services: []
+uniqueid_port: 8051
+uniqueid_version: v0.5.0
+uniqueid_image: "pacifica/uniqueid:{{ uniqueid_version }}"
+uniqueid_size: 1
