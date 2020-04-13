@@ -63,7 +63,7 @@
                 command:
                   - sh
                   - -c
-                  - /usr/local/bin/pacifica-uniqueid-cmd dbsync && echo success; ls -lh /root/.pacifica-uniqueid; echo done;
+                  - /usr/local/bin/pacifica-uniqueid-cmd dbsync && echo success; echo done;
                 volumeMounts:
                   - name: uniqueid-config
                     mountPath: "/root/.pacifica-uniqueid"
