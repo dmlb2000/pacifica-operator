@@ -6,3 +6,5 @@ metadata:
 spec:
   # Add fields here
   uniqueid_size: 1
+  uniqueid_services:
+    - postgresql

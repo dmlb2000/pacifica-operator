@@ -27,64 +27,8 @@
     image: pacifica.github.io/pacifica-operator:testing
     operator_template: "{{ '/'.join([template_dir, 'operator.yaml.j2']) }}"
   tasks:
-    - name: Create DB Persistent Volume
-      k8s:
-        namespace: "{{ namespace }}"
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: uniqueiddb-pv
-          spec:
-            storageClassName: manual
-            capacity:
-              storage: 10Gi
-            accessModes:
-              - ReadWriteOnce
-            hostPath:
-              path: "/mnt/pacificadb"
-        wait: true
-    - name: Create DB Persistent Volume Claim
-      k8s:
-        namespace: "{{ namespace }}"
-        definition:
-          apiVersion: v1
-          kind: PersistentVolumeClaim
-          metadata:
-            name: uniqueiddb-pvc
-          spec:
-            storageClassName: manual
-            accessModes:
-              - ReadWriteOnce
-            resources:
-              requests:
-                storage: 100Mi
-        wait: true
-    - name: Create Config Map
-      k8s:
-        namespace: "{{ namespace }}"
-        definition:
-          kind: ConfigMap
-          metadata:
-            name: uniqueid-config
-          data:
-            cpconfig.ini: |
-              [global]
-              log.screen: True
-              log.access_file: 'access.log'
-              log.error_file: 'error.log'
-              server.socket_host: '0.0.0.0'
-              server.socket_port: 8051
-              [/]
-              request.dispatch: cherrypy.dispatch.MethodDispatcher()
-              tools.response_headers.on: True
-              tools.response_headers.headers: [('Content-Type', 'application/json')]
-            config.ini: |
-              [database]
-              peewee_url = sqliteext:////root/.pacifica-uniqueiddb/db.sqlite3
-        wait: true
     - name: Create the Operator Deployment
-      k8s:
+      community.kubernetes.k8s:
         namespace: '{{ namespace }}'
         definition: "{{ lookup('template', operator_template) }}"
         wait: true

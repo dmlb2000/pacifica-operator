@@ -1,12 +1,62 @@
 ---
-# defaults file for pacifica
-uniqueiddb_pvc_name: uniqueiddb-pvc
-uniqueid_configmap:
-  name: uniqueid-config
-  configMap:
-    name: uniqueid-config
+# defaults file for uniqueid service
 uniqueid_services: []
 uniqueid_port: 8051
 uniqueid_version: v0.5.0
 uniqueid_image: "pacifica/uniqueid:{{ uniqueid_version }}"
 uniqueid_size: 1
+uniqueid_env:
+  - name: PEEWEE_URL
+    valueFrom:
+      secretKeyRef:
+        name: uniqueid-secret
+        key: db_url
+uniqueid_secret: uniqueid-secret
+
+# defaults file for archiveinterface service
+archiveinterface_services: []
+archiveinterface_port: 8080
+archiveinterface_version: v0.4.0
+archiveinterface_image: "pacifica/archiveinterface:{{ archiveinterface_version }}"
+archiveinterface_size: 1
+archiveinterface_volume:
+  name: "archiveinterface-data"
+  emptyDir: {}
+
+__common_cpconfig: |
+  [global]
+  log.screen: True
+  log.access_file: 'access.log'
+  log.error_file: 'error.log'
+  [/]
+  request.dispatch: cherrypy.dispatch.MethodDispatcher()
+  tools.response_headers.on: True
+  tools.response_headers.headers: [('Content-Type', 'application/json')]
+
+k8s_pacifica_services:
+  - name: uniqueid
+    size: "{{ uniqueid_size }}"
+    image: "{{ uniqueid_image }}"
+    env: "{{ uniqueid_env | default([]) }}"
+    port: "{{ uniqueid_port }}"
+    config_path: "/root/.pacifica-uniqueid"
+    readiness_path: "/getid?mode=k8schk&range=1"
+    services: "{{ uniqueid_services }}"
+    cpconfig: "{{ __common_cpconfig }}"
+    config: ""
+    has_backend: false
+  - name: archiveinterface
+    size: "{{ archiveinterface_size }}"
+    image: "{{ archiveinterface_image }}"
+    env: "{{ archiveinterface_env | default([]) }}"
+    port: "{{ archiveinterface_port }}"
+    config_path: "/root/.pacifica-archiveinterface"
+    data_path: "/srv"
+    readiness_path: "/"
+    services: "{{ archiveinterface_services }}"
+    data_volume: "{{ archiveinterface_volume }}"
+    cpconfig: "{{ __common_cpconfig }}"
+    config: |
+      [posix]
+      use_id2filename = true
+    has_backend: false

@@ -9,7 +9,7 @@
 
   tasks:
     - name: Delete namespace
-      k8s:
+      community.kubernetes.k8s:
         api_version: v1
         kind: Namespace
         name: '{{ namespace }}'
@@ -17,7 +17,7 @@
         wait: true
 
     - name: Delete RBAC resources
-      k8s:
+      community.kubernetes.k8s:
         definition: "{{ lookup('template', '/'.join([deploy_dir, item])) }}"
         namespace: '{{ namespace }}'
         state: absent
@@ -28,7 +28,7 @@
         - service_account.yaml
 
     - name: Delete Custom Resource Definition
-      k8s:
+      community.kubernetes.k8s:
         definition: "{{ lookup('file', '/'.join([deploy_dir, 'crds/pacifica.github.io_pacificas_crd.yaml'])) }}"
         state: absent
         wait: true

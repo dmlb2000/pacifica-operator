@@ -1,48 +1,47 @@
 ---
-# tasks file for pacifica
-- name: start uniqueid
-  k8s:
+- name: Create Config Maps
+  include_tasks: configmaps.yml
+- name: Create Volume Lists
+  include_tasks: volumelists.yml
+- name: Define Pacifica Service Frontend
+  community.kubernetes.k8s:
     definition:
       kind: Deployment
       apiVersion: apps/v1
       metadata:
-        name: '{{ meta.name }}-uniqueid'
+        name: '{{ meta.name }}-{{ item.0.name }}'
         namespace: '{{ meta.namespace }}'
       spec:
-        replicas: "{{ uniqueid_size }}"
+        replicas: "{{ item.0.size | int }}"
         selector:
           matchLabels:
-            app: uniqueid
+            app: "{{ item.0.name }}-frontend"
         template:
           metadata:
             labels:
-              app: uniqueid
+              app: "{{ item.0.name }}-frontend"
           spec:
             containers:
-              - name: uniqueid
-                image: "{{ uniqueid_image }}"
-                env: "{{ uniqueid_env | default([]) }}"
+              - name: "{{ item.0.name }}"
+                image: "{{ item.0.image }}"
+                env: "{{ item.0.env | default([]) }}"
                 command:
                   - /usr/local/bin/uwsgi
                   - --http-socket
-                  - "0.0.0.0:{{ uniqueid_port }}"
+                  - "0.0.0.0:{{ item.0.port }}"
                   - --master
                   - --die-on-term
                   - -p
                   - '1'
                   - --module
-                  - pacifica.uniqueid.wsgi
-                volumeMounts:
-                  - name: uniqueid-config
-                    mountPath: "/root/.pacifica-uniqueid"
-                  - name: uniqueid-database
-                    mountPath: "/root/.pacifica-uniqueiddb"
+                  - pacifica.{{ item.0.name }}.wsgi
+                volumeMounts: "{{ item.1 }}"
                 ports:
-                  - containerPort: "{{ uniqueid_port }}"
+                  - containerPort: "{{ item.0.port | int }}"
                 readinessProbe:
                   httpGet:
-                    path: /getid?mode=k8schk&range=1
-                    port: "{{ uniqueid_port }}"
+                    path: "{{ item.0.readiness_path }}"
+                    port: "{{ item.0.port | int }}"
                   initialDelaySeconds: 5
                   periodSeconds: 5
             initContainers:
@@ -52,25 +51,18 @@
                   - sh
                   - -c
                   - |
-                    {% for service in uniqueid_services %}
+                    {% for service in item.0.services %}
                     until nslookup {{ service }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do
                       echo waiting for {{ service }}; sleep 2;
                     done;
                     {% endfor %}
                     echo done;
-              - name: init-uniqueiddb
-                image: "{{ uniqueid_image }}"
+              - name: "init-{{ item.0.name }}db"
+                image: "{{ item.0.image }}"
                 command:
                   - sh
                   - -c
-                  - /usr/local/bin/pacifica-uniqueid-cmd dbsync && echo success; echo done;
-                volumeMounts:
-                  - name: uniqueid-config
-                    mountPath: "/root/.pacifica-uniqueid"
-                  - name: uniqueid-database
-                    mountPath: "/root/.pacifica-uniqueiddb"
-            volumes:
-              - "{{ uniqueid_configmap }}"
-              - name: uniqueid-database
-                persistentVolumeClaim:
-                  claimName: "{{ uniqueiddb_pvc_name }}"
+                  - "/usr/local/bin/pacifica-{{ item.0.name }}-cmd dbsync && echo success; echo done;"
+                volumeMounts: "{{ item.1 }}"
+            volumes: "{{ item.2 }}"
+  loop: "{{ k8s_pacifica_services | zip(volumeMount_list, volumes_list) | list }}"

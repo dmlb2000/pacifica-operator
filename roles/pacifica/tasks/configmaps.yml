@@ -1,0 +1,13 @@
+---
+- name: Define Config Maps
+  community.kubernetes.k8s:
+    definition:
+      kind: ConfigMap
+      metadata:
+        name: "{{ item.name }}-config"
+        namespace: "{{ meta.namespace }}"
+      data:
+        cpconfig.ini: "{{ item.cpconfig }}"
+        config.ini: "{{ item.config }}"
+    wait: true
+  loop: "{{ k8s_pacifica_services }}"

@@ -8,20 +8,130 @@
     - community.kubernetes
   vars:
     deploy_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/deploy"
+    pacifica_services:
+      - uniqueid
+      - metadata
+      - ingest
+      - cartd
+      - notifications
+    pacifica_dburls:
+      - postgresql://pacifica:pacifica@postgresql/pacifica
+      - postgresql://pacifica:pacifica@postgresql/pacifica
+      - postgresql://pacifica:pacifica@postgresql/pacifica
+      - postgresql://pacifica:pacifica@postgresql/pacifica
+      - postgresql://pacifica:pacifica@postgresql/pacifica
   tasks:
     - name: Create Custom Resource Definition
-      k8s:
+      community.kubernetes.k8s:
         definition: "{{ lookup('file', '/'.join([deploy_dir, 'crds/pacifica.github.io_pacificas_crd.yaml'])) }}"
     - name: Create namespace
-      k8s:
+      community.kubernetes.k8s:
         api_version: v1
         kind: Namespace
         name: '{{ namespace }}'
     - name: Create RBAC resources
-      k8s:
+      community.kubernetes.k8s:
         definition: "{{ lookup('template', '/'.join([deploy_dir, item])) }}"
         namespace: '{{ namespace }}'
       with_items:
         - role.yaml
         - role_binding.yaml
         - service_account.yaml
+    - name: Create DB Persistent Volume
+      community.kubernetes.k8s:
+        namespace: "{{ namespace }}"
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "pacificadb-pv"
+          spec:
+            storageClassName: manual
+            capacity:
+              storage: 20Gi
+            accessModes:
+              - ReadWriteOnce
+            hostPath:
+              path: "/mnt/pacificadb"
+        wait: true
+    - name: Create DB Persistent Volume Claim
+      community.kubernetes.k8s:
+        namespace: "{{ namespace }}"
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: "pacificadb-pvc"
+          spec:
+            storageClassName: manual
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi
+        wait: true
+    - name: Create PostgreSQL Deployment
+      community.kubernetes.k8s:
+        definition:
+          kind: Deployment
+          apiVersion: apps/v1
+          metadata:
+            name: 'postgresql'
+            namespace: '{{ namespace }}'
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: postgresql
+            strategy:
+              type: Recreate
+            template:
+              metadata:
+                labels:
+                  app: postgresql
+              spec:
+                containers:
+                  - name: postgresql
+                    image: postgres:11
+                    env:
+                      - name: POSTGRES_USER
+                        value: pacifica
+                      - name: POSTGRES_PASSWORD
+                        value: pacifica
+                      - name: POSTGRES_DB
+                        value: pacifica
+                    volumeMounts:
+                      - name: pgdata
+                        mountPath: /var/lib/postgresql/data
+                    ports:
+                      - containerPort: 5432
+                    livenessProbe:
+                      tcpSocket:
+                        port: 5432
+                      initialDelaySeconds: 5
+                      periodSeconds: 5
+                volumes:
+                  - name: pgdata
+                    persistentVolumeClaim:
+                      claimName: pacificadb-pvc
+    - name: Define Service Secrets
+      community.kubernetes.k8s:
+        definition:
+          kind: Secret
+          metadata:
+            name: "{{ item }}-secret"
+            namespace: '{{ namespace }}'
+          type: Opaque
+          stringData:
+            proto: postgresql
+            host: postgresql
+            user: pacifica
+            pass: pacifica
+            name: pacifica
+            db_url: postgresql://pacifica:pacifica@postgresql:5432/pacifica
+      loop:
+        - uniqueid
+        - metadata
+        - cartd
+        - ingest
+        - notifications

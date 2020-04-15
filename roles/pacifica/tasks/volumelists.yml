@@ -1,0 +1,50 @@
+---
+- name: Create Config Volume Mount Array
+  set_fact:
+    config_volumeMounts:
+      name: "{{ item.name }}-config"
+      mountPath: "{{ item.config_path }}"
+  loop: "{{ k8s_pacifica_services }}"
+  register: config_volm_result
+- name: Set Shared Data Volume Mount Array
+  set_fact:
+    data_volumeMount:
+      name: "{{ item.name }}-data"
+      mountPath: "{{ item.data_path }}"
+  when: "item.data_path is defined"
+  loop: "{{ k8s_pacifica_services }}"
+  register: data_volm_result
+- name: Set Volume Mount List
+  set_fact:
+    volumeMount_list: "{{
+      data_volm_result.results |
+      map(attribute='ansible_facts.data_volumeMounts', default={}) | list |
+      zip(
+        config_volm_result.results |
+        map(attribute='ansible_facts.config_volumeMounts') | list
+      ) | list
+    }}"
+- name: Create Config Volume Array
+  set_fact:
+    config_volumes:
+      name: "{{ item.name }}-config"
+      configMap:
+        name: "{{ item.name }}-config"
+  loop: "{{ k8s_pacifica_services }}"
+  register: config_vol_result
+- name: Set Shared Data Volume Array
+  set_fact:
+    data_volumes: "{{ item.data_volume }}"
+  when: "item.data_path is defined"
+  loop: "{{ k8s_pacifica_services }}"
+  register: data_vol_result
+- name: Set Volume List
+  set_fact:
+    volumes_list: "{{
+      data_vol_result.results |
+      map(attribute='ansible_facts.data_volumes', default={}) | list |
+      zip(
+        config_vol_result.results |
+        map(attribute='ansible_facts.config_volumes') | list
+      ) | list
+    }}"

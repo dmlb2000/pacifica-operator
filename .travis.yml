@@ -3,5 +3,6 @@ services: docker
 language: python
 install:
   - pip3 install docker molecule openshift jmespath yamllint ansible-lint
+  - ansible-galaxy collection install -r requirements.yml
 script:
   - molecule test -s test-local
